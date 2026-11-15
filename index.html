@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#2563eb">
+<meta name="theme-color" content="#000000">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<title>Door Planner</title>
+<title>SUFR</title>
 <style>
 :root{--bg:#f6f7f9;--card:#fff;--tx:#14181f;--mu:#6b7280;--ac:#2563eb;--ln:#e5e7eb;--ok:#16a34a;--bad:#dc2626;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1115;--card:#1a1d24;--tx:#eef0f4;--mu:#9aa1ad;--ac:#60a5fa;--ln:#2a2e38;--ok:#4ade80;--bad:#f87171}}
@@ -36,10 +36,8 @@ main{padding:0 16px}
 .btn.p{background:var(--ac);color:#fff;border-color:var(--ac)}.btn.d{color:var(--bad)}
 .acts{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
 .acts .btn{flex:1;text-align:center;white-space:nowrap}
-nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid var(--ln);padding-bottom:env(safe-area-inset-bottom,0px)}
-nav button{flex:1;padding:14px 0;border:0;background:none;color:var(--mu);font-weight:600}
-nav button.on{color:var(--ac)}
-.fab{position:fixed;right:18px;bottom:calc(76px + env(safe-area-inset-bottom,0px));width:56px;height:56px;border-radius:50%;border:0;background:var(--ac);color:#fff;font-size:30px;box-shadow:0 4px 14px rgba(0,0,0,.3)}
+.gear{margin-left:auto;width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:var(--card);border:1px solid var(--ln);border-radius:10px;padding:0}
+.fab{position:fixed;right:18px;bottom:calc(18px + env(safe-area-inset-bottom,0px));width:56px;height:56px;border-radius:50%;border:0;background:var(--ac);color:#fff;font-size:30px;box-shadow:0 4px 14px rgba(0,0,0,.3)}
 .sheet{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;z-index:20;align-items:flex-end}
 .sheet.show{display:flex}
 .panel{background:var(--bg);width:100%;max-height:92%;overflow:auto;border-radius:18px 18px 0 0;padding:16px 16px calc(24px + env(safe-area-inset-bottom,0px))}
@@ -51,10 +49,9 @@ label{font-size:12px;color:var(--mu);display:block;margin:2px 0 3px}
 </style>
 </head>
 <body>
-<header><h1 id="ttl"></h1><div class="mu" id="sub"></div></header>
+<header><div class="row" style="justify-content:flex-start;gap:8px;margin-bottom:6px"><svg viewBox="0 0 120 140" width="28" height="33" role="img" aria-label="SUFR logo"><path d="M60 0C27 0 0 26 0 58c0 40 60 82 60 82s60-42 60-82C120 26 93 0 60 0z" style="fill:var(--tx)"/><path d="M32 30h56l6 16H26z" style="fill:var(--bg)"/><path d="M46 30l-3 16M60 30v16M74 30l3 16" style="stroke:var(--tx);stroke-width:3"/><rect x="34" y="50" width="6" height="38" style="fill:var(--bg)"/><rect x="80" y="50" width="6" height="38" style="fill:var(--bg)"/><rect x="30" y="88" width="60" height="6" rx="1" style="fill:var(--bg)"/><text x="60" y="84" text-anchor="middle" font-family="Arial,sans-serif" font-weight="800" font-size="40" style="fill:var(--bg)">S</text></svg><b style="letter-spacing:.08em">SUFR</b><button class="gear" id="gear" aria-label="Settings"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button></div><div id="backrow"></div><h1 id="ttl"></h1><div class="mu" id="sub"></div></header>
 <main id="main"></main>
 <button class="fab" id="fab" aria-label="Add door">+</button>
-<nav><button data-t="today" class="on">This week</button><button data-t="doors">Doors</button><button data-t="revs">Revisits</button><button data-t="rot">Rotation</button></nav>
 <div class="sheet" id="sheet"><div class="panel" id="panel"></div></div>
 <script>
 var N=13,DAYS=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"],T=new Date(),tab="today",q="";
@@ -144,7 +141,8 @@ function vToday(){
  '<div class="chips">'+DAYS.map(function(d,i){return '<div class="chip'+(i===td?" t":"")+'"><b>'+cnt[i]+'</b>'+d+'</div>'}).join("")+'</div>'+
  '<div class="grid"><div class="card"><b>'+sold+'</b><span>Sales</span></div><div class="card"><b>'+(k?Math.round(sold/k*100):0)+'%</b><span>Conversion</span></div><div class="card"><b>'+st+'</b><span>Statements</span></div>'+
  '<div class="card"><b>'+(k?Math.round(st/k*100):0)+'%</b><span>Statement %</span></div><div class="card"><b>'+revsDue().length+'</b><span>Revisits due</span></div><div class="card"><b>'+(c.c+1)+'</b><span>Cycle</span></div></div>'+
- '<div class="acts"><button class="btn p" id="nb">+ Add a new business</button></div>';
+ '<div class="acts"><button class="btn p" id="nb">+ Add a new business</button></div>'+
+ '<div class="acts"><button class="btn" data-t="doors">All businesses</button><button class="btn" data-t="revs">Revisits ('+revsDue().length+')</button><button class="btn" data-t="rot">Rotation</button></div>';
  var nx=db.areas[(c.i+1)%N];
  return h+'<div class="mu" style="text-align:center">Next week: '+esc(nx.n)+'</div>';
 }
@@ -174,7 +172,13 @@ function vRot(){
   '<input data-ai="'+i+'" data-f="n" value="'+esc(a.n)+'" placeholder="Area name" style="font-weight:700"><input data-ai="'+i+'" data-f="m" value="'+esc(a.m)+'" placeholder="Google Maps link (optional)">'+
   (i===c.i?"":'<button class="btn" data-mk="'+i+'" style="width:100%">Make this the current week</button>')+'</div>';
  });
- h+='<div class="card"><b>Backup and restore</b><div class="mu" style="margin:4px 0">Your data is kept only on this phone, in this app’s storage. Last backup: '+(db.lb||"never")+'</div><div class="acts"><button class="btn p" id="bk">Back up now</button><button class="btn" id="rr">Restore from file</button></div><input id="rf" type="file" accept=".json,application/json" style="display:none"><textarea id="pt" rows="2" placeholder="Or paste backup text here"></textarea><div class="acts"><button class="btn" id="rp">Restore from pasted text</button></div><div class="acts"><button class="btn d" id="wipe">Erase all data on this phone</button></div><div id="bkmsg" class="mu"></div></div>';
+ return h;
+}
+function setHtml(){
+ return '<div class="row"><h2 style="margin:0">Settings</h2><button class="btn" id="sx">Close</button></div><div class="acts" style="margin-top:12px;flex-direction:column"><button class="btn" id="hist">History: past weeks and KPIs</button><button class="btn" id="data">Data: backup, restore and erase</button></div>';
+}
+function dataHtml(){
+ var h='<div class="row"><h2 style="margin:0">Data</h2><button class="btn" id="sx">Close</button></div><div class="acts" style="margin-top:12px"><button class="btn" id="hb">← Settings</button></div><div class="card"><b>Backup and restore</b><div class="mu" style="margin:4px 0">Your data is kept only on this phone, in this app’s storage. Last backup: '+(db.lb||"never")+'</div><div class="acts"><button class="btn p" id="bk">Back up now</button><button class="btn" id="rr">Restore from file</button></div><input id="rf" type="file" accept=".json,application/json" style="display:none"><textarea id="pt" rows="2" placeholder="Or paste backup text here"></textarea><div class="acts"><button class="btn" id="rp">Restore from pasted text</button></div><div id="bkmsg" class="mu"></div></div><div class="card"><b>Danger zone</b><div class="mu" style="margin:4px 0">Permanently deletes every business, note, area and setting on this phone. Back up first.</div><div class="acts"><button class="btn d" id="ask">Erase all data…</button></div></div>';
  return h;
 }
 var pend=null;
@@ -202,9 +206,36 @@ function applyBackup(txt){
  pend=d;
  $("bkmsg").innerHTML='<div class="card" style="margin-top:8px">Found '+d.leads.length+' doors across '+d.areas.length+' areas. Restoring replaces what is on this phone now.<div class="acts"><button class="btn d" id="rc">Replace my data</button><button class="btn" id="rx">Cancel</button></div></div>';
 }
+function histHtml(){
+ var cw=iso(mon(T)),g={},keys=[],tot={n:0,s:0,st:0},tg=db.target;
+ db.leads.forEach(function(l){
+  if(!l.d||l.d>=cw)return;
+  var w=iso(mon(pd(l.d))),k=w+"|"+l.a;
+  if(!g[k]){g[k]={w:w,a:l.a,n:0,s:0,st:0,rv:0};keys.push(k)}
+  var o=g[k];o.n++;tot.n++;
+  if(l.u==="Sold to"){o.s++;tot.s++}
+  if(l.s==="Yes"){o.st++;tot.st++}
+  if(l.u==="Revisit")o.rv++;
+ });
+ keys.sort(function(a,b){return g[b].w.localeCompare(g[a].w)||g[a].a-g[b].a});
+ var pc=function(a,b){return b?Math.round(a/b*100)+"%":"0%"};
+ var h='<div class="row"><h2 style="margin:0">History</h2><button class="btn" id="sx">Close</button></div><div class="acts" style="margin-top:12px"><button class="btn" id="hb">← Settings</button></div>';
+ if(!keys.length)return h+'<div class="empty">No past weeks yet. When a week has finished, its area and numbers show up here.</div>';
+ h+='<div class="card"><div class="mu">ALL PAST WEEKS · '+keys.length+' area-week'+(keys.length>1?"s":"")+'</div><div class="grid" style="margin-top:8px"><div class="card"><b>'+tot.n+'</b><span>Doors</span></div><div class="card"><b>'+tot.s+'</b><span>Sales</span></div><div class="card"><b>'+pc(tot.s,tot.n)+'</b><span>Conversion</span></div></div></div>';
+ keys.forEach(function(k){
+  var o=g[k],pct=Math.min(100,Math.round(o.n/tg*100));
+  h+='<div class="card"><div class="row"><b>'+esc(aName(o.a))+'</b><span class="mu">w/c '+pd(o.w).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})+'</span></div>'+
+  '<div class="bar"><i style="width:'+pct+'%"></i></div><div class="mu" style="margin-bottom:8px">'+o.n+' of '+tg+' doors</div>'+
+  '<div class="grid"><div class="card"><b>'+o.s+'</b><span>Sales</span></div><div class="card"><b>'+pc(o.s,o.n)+'</b><span>Conversion</span></div><div class="card"><b>'+o.st+'</b><span>Statements</span></div>'+
+  '<div class="card"><b>'+pc(o.st,o.n)+'</b><span>Statement %</span></div><div class="card"><b>'+o.rv+'</b><span>Revisits</span></div><div class="card"><b>'+pct+'%</b><span>Of target</span></div></div></div>';
+ });
+ return h+'<div class="mu" style="text-align:center">Door target uses your current doors-per-week setting.</div>';
+}
+function openSettings(){openSheet(setHtml())}
 function render(){
  var c=cur();
  $("ttl").textContent={today:"This week",doors:"Doors",revs:"Revisits",rot:"13-week rotation"}[tab];
+ $("backrow").innerHTML=tab==="today"?"":'<button class="btn" data-t="today" style="margin-bottom:8px">← This week</button>';
  $("sub").textContent=tab==="rot"?"Edit areas in the order you work them":"Week "+(c.i+1)+" of "+N+" · "+aName(c.i);
  $("fab").style.display=tab==="rot"?"none":"block";
  var f={today:vToday,doors:vDoors,revs:vRevs,rot:vRot}[tab];
@@ -257,14 +288,20 @@ function form(l,fa){
 }
 document.addEventListener("click",function(e){
  var bi=e.target.id;
- if(bi==="gobk"){document.querySelector('nav button[data-t="rot"]').click();return}
+ if(bi==="gobk"||bi==="data"){openSheet(dataHtml());return}
+ if(e.target.closest("#gear")){openSettings();return}
+ if(bi==="sx"){closeSheet();return}
+ if(bi==="hist"){openSheet(histHtml());return}
+ if(bi==="hb"){openSettings();return}
+ if(bi==="ask"){$("panel").innerHTML='<h2 style="margin-top:0">Erase everything?</h2><div class="mu" style="margin-bottom:10px">This permanently deletes all businesses, notes, areas and settings on this phone. It can’t be undone. If you might want your data back, cancel and back it up first.</div><input id="ec" placeholder="Type ERASE to confirm" autocomplete="off" autocapitalize="characters"><div class="acts"><button class="btn d" id="wipe" disabled>Erase all data</button><button class="btn" id="ecx">Cancel</button></div>';return}
+ if(bi==="ecx"){openSheet(dataHtml());return}
  if(bi==="bk"){doBackup();return}
  if(bi==="rr"){$("rf").click();return}
  if(bi==="rp"){applyBackup($("pt").value);return}
  if(bi==="wipe"){
-  if(e.target.dataset.arm!=="1"){e.target.dataset.arm="1";e.target.textContent="Tap again to erase everything";return}
+  if($("ec").value.trim()!=="ERASE")return;
   try{localStorage.removeItem("pdoor_prev")}catch(x){}
-  db=fresh();save();render();msg("All data erased. You now have a clean install.");return;
+  db=fresh();save();tab="today";closeSheet();return;
  }
  if(bi==="rx"){pend=null;msg("");return}
  if(bi==="rc"&&pend){
@@ -282,8 +319,8 @@ document.addEventListener("click",function(e){
  if(e.target.closest("a"))return;
  var mk=e.target.closest("[data-mk]");
  if(mk){db.start=iso(add(mon(T),-7*(+mk.dataset.mk)));save();render();return}
- var b=e.target.closest("nav button");
- if(b){tab=b.dataset.t;document.querySelectorAll("nav button").forEach(function(x){x.classList.toggle("on",x===b)});render();return}
+ var b=e.target.closest("[data-t]");
+ if(b){tab=b.dataset.t;window.scrollTo(0,0);render();return}
  var el=e.target.closest("[data-l]");
  if(el){form(db.leads.find(function(x){return x.id===el.dataset.l}));return}
  if(e.target.id==="sheet")closeSheet();
@@ -299,7 +336,7 @@ document.addEventListener("change",function(e){
  if(t.id==="tg"){db.target=Math.max(1,+t.value||100);save()}
  if(t.dataset&&t.dataset.ai!==undefined){db.areas[+t.dataset.ai][t.dataset.f]=t.value.trim();save()}
 });
-document.addEventListener("input",function(e){if(e.target.id==="q"){q=e.target.value;var p=e.target.selectionStart;render();var n=$("q");if(n){n.focus();n.setSelectionRange(p,p)}}});
+document.addEventListener("input",function(e){if(e.target.id==="ec"){$("wipe").disabled=e.target.value.trim()!=="ERASE";return}if(e.target.id==="q"){q=e.target.value;var p=e.target.selectionStart;render();var n=$("q");if(n){n.focus();n.setSelectionRange(p,p)}}});
 var drag=null;
 document.addEventListener("pointerdown",function(e){
  var h=e.target.closest(".hd");if(!h)return;
