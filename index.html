@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2563eb">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Door Planner</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--tx:#14181f;--mu:#6b7280;--ac:#2563eb;--ln:#e5e7eb;--ok:#16a34a;--bad:#dc2626;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1115;--card:#1a1d24;--tx:#eef0f4;--mu:#9aa1ad;--ac:#60a5fa;--ln:#2a2e38;--ok:#4ade80;--bad:#f87171}}
+:root[data-theme="dark"]{--bg:#0f1115;--card:#1a1d24;--tx:#eef0f4;--mu:#9aa1ad;--ac:#60a5fa;--ln:#2a2e38;--ok:#4ade80;--bad:#f87171}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 system-ui,-apple-system,Roboto,sans-serif;padding-bottom:150px}
+h1{margin:0;font-size:20px}
+header{padding:14px 16px 6px}
+input,select,textarea{font:inherit;color:var(--tx);width:100%;padding:11px 12px;border:1px solid var(--ln);border-radius:10px;background:var(--card);margin-bottom:8px}
+button{font:inherit;color:var(--tx)}
+main{padding:0 16px}
+.card{background:var(--card);border:1px solid var(--ln);border-radius:12px;padding:12px;margin-bottom:8px}
+.row{display:flex;align-items:center;gap:10px;justify-content:space-between}
+.mu{color:var(--mu);font-size:13px}
+.pill{font-size:12px;padding:3px 9px;border-radius:99px;background:var(--ln);white-space:nowrap}
+.pill.s{background:var(--ok);color:#fff}.pill.r{background:#f59e0b;color:#000}
+.big{font-size:26px;font-weight:700;margin:2px 0}
+.bar{height:10px;border-radius:99px;background:var(--ln);overflow:hidden;margin:10px 0 6px}
+.bar i{display:block;height:100%;background:var(--ac)}
+.chips{display:flex;gap:6px;margin-bottom:8px}
+.chip{flex:1;text-align:center;background:var(--card);border:1px solid var(--ln);border-radius:10px;padding:6px 0;font-size:12px;color:var(--mu)}
+.chip b{display:block;font-size:17px;color:var(--tx)}.chip.t{border-color:var(--ac)}
+.grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px}
+.grid .card{margin:0;text-align:center;padding:10px 4px}.grid b{display:block;font-size:18px}.grid span{font-size:12px;color:var(--mu)}
+.btn{padding:11px 14px;border-radius:10px;border:1px solid var(--ln);background:var(--card);font-weight:600;text-decoration:none;display:inline-block;color:var(--tx);cursor:pointer}
+.btn.p{background:var(--ac);color:#fff;border-color:var(--ac)}.btn.d{color:var(--bad)}
+.acts{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.acts .btn{flex:1;text-align:center;white-space:nowrap}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid var(--ln);padding-bottom:env(safe-area-inset-bottom,0px)}
+nav button{flex:1;padding:14px 0;border:0;background:none;color:var(--mu);font-weight:600}
+nav button.on{color:var(--ac)}
+.fab{position:fixed;right:18px;bottom:calc(76px + env(safe-area-inset-bottom,0px));width:56px;height:56px;border-radius:50%;border:0;background:var(--ac);color:#fff;font-size:30px;box-shadow:0 4px 14px rgba(0,0,0,.3)}
+.sheet{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;z-index:20;align-items:flex-end}
+.sheet.show{display:flex}
+.panel{background:var(--bg);width:100%;max-height:92%;overflow:auto;border-radius:18px 18px 0 0;padding:16px 16px calc(24px + env(safe-area-inset-bottom,0px))}
+.empty{text-align:center;color:var(--mu);padding:36px 10px}
+.late{color:var(--bad)}.now{border-color:var(--ac);border-width:2px}
+label{font-size:12px;color:var(--mu);display:block;margin:2px 0 3px}
+.hd{font-size:26px;line-height:1;color:var(--mu);touch-action:none;cursor:grab;padding:4px 10px 4px 0;user-select:none;-webkit-user-select:none}
+.drag{box-shadow:0 8px 22px rgba(0,0,0,.35);border-color:var(--ac)}
+</style>
+</head>
+<body>
+<header><h1 id="ttl"></h1><div class="mu" id="sub"></div></header>
+<main id="main"></main>
+<button class="fab" id="fab" aria-label="Add door">+</button>
+<nav><button data-t="today" class="on">This week</button><button data-t="doors">Doors</button><button data-t="revs">Revisits</button><button data-t="rot">Rotation</button></nav>
+<div class="sheet" id="sheet"><div class="panel" id="panel"></div></div>
+<script>
+var N=13,DAYS=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"],T=new Date(),tab="today",q="";
+function p2(n){return n<10?"0"+n:""+n}
+function iso(d){return d.getFullYear()+"-"+p2(d.getMonth()+1)+"-"+p2(d.getDate())}
+function mon(d){d=new Date(d.getFullYear(),d.getMonth(),d.getDate());d.setDate(d.getDate()-(d.getDay()+6)%7);return d}
+function add(d,n){d=new Date(d);d.setDate(d.getDate()+n);return d}
+function pd(s){var a=s.split("-");return new Date(+a[0],a[1]-1,+a[2])}
+function fmt(d){return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})}
+function id(){return Date.now().toString(36)+Math.random().toString(36).slice(2,5)}
+function esc(x){return String(x==null?"":x).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function $(i){return document.getElementById(i)}
+function enc(s){return encodeURIComponent(s)}
+function fresh(){
+ var names=[],a=[],i;
+ for(i=0;i<N;i++)a.push({n:names[i]||"Area "+(i+1),m:""});
+ var l=[];
+ return{start:iso(mon(T)),target:100,areas:a,leads:l,view:null};
+}
+var db;
+try{db=JSON.parse(localStorage.getItem("pdoor"))}catch(e){}
+if(!db||!db.areas)db=fresh();
+function clean(){var n=db.leads.length;db.leads=db.leads.filter(function(l){return l.n!=="Door (no answer)"});return n!==db.leads.length}
+if(clean())save();
+function save(){try{localStorage.setItem("pdoor",JSON.stringify(db))}catch(e){}}
+function cur(){var w=Math.round((mon(T)-mon(pd(db.start)))/6048e5);return{w:w,i:((w%N)+N)%N,c:Math.floor(w/N)}}
+function aName(i){return db.areas[i].n}
+function addr(l){return ((l.no?l.no+" ":"")+(l.st||"")).trim()}
+function stFill(a,cur){
+ var s=db.areas[a].s||[],el=$("f_st"),n=$("f_stn");
+ el.innerHTML='<option value="">— no street —</option>'+s.map(function(x){return '<option value="'+esc(x)+'"'+(x===cur?" selected":"")+'>'+esc(x)+'</option>'}).join("")+'<option value="__new">➕ New street…</option>';
+ if(cur&&s.indexOf(cur)<0){el.value="__new";n.value=cur}
+ else if(!s.length&&!cur)el.value="__new";
+ n.style.display=el.value==="__new"?"block":"none";
+}
+function getSt(){var e=$("f_st");return e.value==="__new"?$("f_stn").value.trim():e.value}
+function mapUrl(l){return /^https?:/.test(l.m||"")?l.m:"https://www.google.com/maps/search/?api=1&query="+enc((l.n||"")+" "+addr(l)+" "+aName(l.a))}
+function dirUrl(l){return "https://www.google.com/maps/dir/?api=1&destination="+enc((l.n||"")+" "+addr(l)+" "+aName(l.a))}
+function calUrl(l){
+ if(!l.r)return "";
+ var d=pd(l.r),z=function(x){return x.getFullYear()+p2(x.getMonth()+1)+p2(x.getDate())},dt;
+ if(l.rt){var h=l.rt.split(":"),s=new Date(d.getFullYear(),d.getMonth(),d.getDate(),+h[0],+h[1]),e=new Date(s.getTime()+18e5);
+  dt=z(s)+"T"+p2(s.getHours())+p2(s.getMinutes())+"00/"+z(e)+"T"+p2(e.getHours())+p2(e.getMinutes())+"00"}
+ else dt=z(d)+"/"+z(add(d,1));
+ var det=["Revisit: "+(l.n||"Door"),"Address: "+(addr(l)?addr(l)+", ":"")+aName(l.a)];
+ if(l.o)det.push("Owner: "+l.o);if(l.p)det.push("Number: "+l.p);if(l.v)det.push("Current provider: "+l.v);
+ if(l.s)det.push("Statement: "+l.s);if(l.u)det.push("Status: "+l.u);if(l.t)det.push("Notes: "+l.t);
+ if(l.oh&&l.oh.length)det.push("Open: "+ohTxt(l.oh));
+ if(l.so)SK.forEach(function(k){if(l.so[k])det.push(SOC[k]+": "+soUrl(k,l.so[k],l))});
+ det.push("Map: "+mapUrl(l));
+ return "https://calendar.google.com/calendar/render?action=TEMPLATE&text="+enc("Revisit: "+(l.n||"Door")+" ("+aName(l.a)+")")+"&dates="+dt+"&details="+enc(det.join("\n"))+"&location="+enc((l.n||"")+", "+(addr(l)?addr(l)+", ":"")+aName(l.a));
+}
+var OH=[],SK=["web","fb","ig","tt","x","li"],SOC={web:"Website",fb:"Facebook",ig:"Instagram",tt:"TikTok",x:"X",li:"LinkedIn"},SS={web:"Web",fb:"FB",ig:"IG",tt:"TT",x:"X",li:"LI"};
+function ohTxt(a){return a.indexOf("A")>-1?"all day":a.map(function(k){return k==="M"?"morning":"evening"}).join(" + ")}
+function paintOh(){document.querySelectorAll("[data-oh]").forEach(function(b){b.classList.toggle("p",OH.indexOf(b.dataset.oh)>-1)})}
+function readSo(){var s={};SK.forEach(function(k){var e=$("s_"+k);if(e&&e.value.trim())s[k]=e.value.trim()});return s}
+function soUrl(k,v,l){
+ v=v||"";
+ var h=v.replace(/^@/,"");
+ if(/^https?:/i.test(v))return v;
+ if(h){
+  if(k==="fb")return "https://www.facebook.com/"+h;
+  if(k==="ig")return "https://www.instagram.com/"+h;
+  if(k==="tt")return "https://www.tiktok.com/@"+h;
+  if(k==="x")return "https://x.com/"+h;
+  if(k==="web"&&h.indexOf(".")>0&&h.indexOf(" ")<0)return "https://"+h;
+ }
+ return "https://www.google.com/search?q="+enc((l.n||"")+" "+aName(l.a)+" "+(k==="web"?"website":k==="x"?"twitter":SOC[k]));
+}
+function soBtns(l){return SK.filter(function(k){return l.so&&l.so[k]}).map(function(k){return '<a class="btn" target="_blank" rel="noopener" href="'+esc(soUrl(k,l.so[k],l))+'">'+SS[k]+'</a>'}).join("")}
+function formLead(){var l={a:+$("f_a").value};l.n=$("f_n").value.trim();l.o=$("f_o").value.trim();l.p=$("f_p").value.trim();l.v=$("f_v").value.trim();l.t=$("f_t").value;l.s=$("f_s").value;l.u=$("f_u").value;l.r=$("f_r").value;l.rt=$("f_rt").value;l.st=getSt();l.no=$("f_no").value.trim();l.m=$("f_m").value.trim();l.oh=OH.slice();l.so=readSo();return l}
+function areaUrl(i){var m=db.areas[i].m;return /^https?:/.test(m||"")?m:"https://www.google.com/maps/search/?api=1&query="+enc(aName(i))}
+function weekLeads(i){var s=iso(mon(T)),e=iso(add(mon(T),6));return db.leads.filter(function(l){return l.a===i&&l.d>=s&&l.d<=e})}
+function revsDue(){var t=iso(T);return db.leads.filter(function(l){return l.u==="Revisit"&&(!l.r||l.r<=t)})}
+
+function vToday(){
+ var c=cur(),wk=weekLeads(c.i),k=wk.length,left=Math.max(0,db.target-k),
+ sold=wk.filter(function(l){return l.u==="Sold to"}).length,st=wk.filter(function(l){return l.s==="Yes"}).length,
+ dl=Math.max(0,5-(T.getDay()+6)%7),pct=Math.min(100,Math.round(k/db.target*100)),
+ pace=left===0?"Target hit 🎉":(dl?"about "+Math.ceil(left/dl)+" a day for the "+dl+" weekday"+(dl>1?"s":"")+" left":"weekend: "+left+" to go"),
+ cnt=[0,0,0,0,0,0,0];
+ wk.forEach(function(l){cnt[(pd(l.d).getDay()+6)%7]++});
+ var td=(T.getDay()+6)%7;
+ var stale=db.leads.length>=10&&(!db.lb||(T-pd(db.lb))/864e5>7),h=(stale?'<div class="card row"><span class="mu">Last backup: '+(db.lb||"never")+'. Your data lives only on this phone.</span><button class="btn" id="gobk">Back up</button></div>':"")+'<div class="card now"><div class="mu">WEEK '+(c.i+1)+' OF '+N+' · W/C '+fmt(mon(T)).toUpperCase()+'</div><div class="big">'+esc(aName(c.i))+'</div>'+
+ '<div class="bar"><i style="width:'+pct+'%"></i></div><div class="row"><b>'+left+' doors left</b><span class="mu">'+k+' / '+db.target+' knocked</span></div><div class="mu">'+pace+'</div>'+
+ '<div class="acts"><a class="btn" target="_blank" rel="noopener" href="'+areaUrl(c.i)+'">📍 Area map</a><a class="btn" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=businesses+near+me">Near me</a></div></div>'+
+ '<div class="chips">'+DAYS.map(function(d,i){return '<div class="chip'+(i===td?" t":"")+'"><b>'+cnt[i]+'</b>'+d+'</div>'}).join("")+'</div>'+
+ '<div class="grid"><div class="card"><b>'+sold+'</b><span>Sales</span></div><div class="card"><b>'+(k?Math.round(sold/k*100):0)+'%</b><span>Conversion</span></div><div class="card"><b>'+st+'</b><span>Statements</span></div>'+
+ '<div class="card"><b>'+(k?Math.round(st/k*100):0)+'%</b><span>Statement %</span></div><div class="card"><b>'+revsDue().length+'</b><span>Revisits due</span></div><div class="card"><b>'+(c.c+1)+'</b><span>Cycle</span></div></div>'+
+ '<div class="acts"><button class="btn p" id="nb">+ Add a new business</button></div>';
+ var nx=db.areas[(c.i+1)%N];
+ return h+'<div class="mu" style="text-align:center">Next week: '+esc(nx.n)+'</div>';
+}
+function lcard(l){
+ var d=l.d?DAYS[(pd(l.d).getDay()+6)%7]+" "+fmt(pd(l.d)):"Undated";
+ return '<div class="card" data-l="'+l.id+'"><div class="row"><b>'+esc(l.n||"Door")+'</b>'+(l.u?'<span class="pill '+(l.u==="Sold to"?"s":l.u==="Revisit"?"r":"")+'">'+l.u+'</span>':"")+'</div>'+
+ '<div class="mu">'+(addr(l)?"<b>"+esc(addr(l))+"</b> · ":"")+d+(l.oh&&l.oh.length?" · Open "+ohTxt(l.oh):"")+(l.v?" · "+esc(l.v):"")+(l.o?" · "+esc(l.o):"")+(l.r?" · revisit "+l.r+(l.rt?" "+l.rt:""):"")+'</div>'+
+ '<div class="acts">'+(l.p?'<a class="btn" href="tel:'+esc(l.p)+'">Call</a>':"")+'<a class="btn" target="_blank" rel="noopener" href="'+mapUrl(l)+'">Maps</a>'+(l.r?'<a class="btn" target="_blank" rel="noopener" href="'+calUrl(l)+'">📅 Calendar</a>':"")+soBtns(l)+'</div></div>';
+}
+function vDoors(){
+ var i=db.view==null?cur().i:db.view,k=q.toLowerCase();
+ var opts=db.areas.map(function(a,x){return '<option value="'+x+'"'+(x===i?" selected":"")+'>'+(x+1)+'. '+esc(a.n)+'</option>'}).join("");
+ var list=db.leads.filter(function(l){return l.a===i&&(!k||((l.n||"")+" "+(l.o||"")+" "+(l.v||"")+" "+(l.p||"")+" "+(l.st||"")).toLowerCase().indexOf(k)>-1)}).sort(function(a,b){return (b.d||"").localeCompare(a.d||"")});
+ return '<select id="av">'+opts+'</select><input id="q" type="search" placeholder="Search businesses…" value="'+esc(q)+'">'+
+ (list.length?list.map(lcard).join(""):'<div class="empty">No doors logged for this area yet. Tap + to add one.</div>');
+}
+function vRevs(){
+ var t=iso(T),l=db.leads.filter(function(x){return x.u==="Revisit"}).sort(function(a,b){return ((a.r||"0")+(a.rt||"")).localeCompare((b.r||"0")+(b.rt||""))});
+ return l.length?l.map(function(x){return '<div class="mu '+(x.r&&x.r<t?"late":"")+'" style="margin:8px 2px 2px">'+esc(aName(x.a))+(x.r?" · due "+x.r:" · no date")+'</div>'+lcard(x)}).join(""):'<div class="empty">No revisits waiting. Set a door’s status to Revisit to see it here.</div>';
+}
+function vRot(){
+ var c=cur(),ws=mon(pd(db.start));
+ var h='<div class="mu" style="margin:0 2px 8px">Drag ⠿ to reorder weeks · tap a name to rename it. Logged doors move with their area.</div><div class="card"><label>Rotation started (a Monday)</label><input id="st" type="date" value="'+db.start+'"><label>Doors per week</label><input id="tg" type="number" value="'+db.target+'"></div>';
+ db.areas.forEach(function(a,i){
+  var d=add(mon(pd(db.start)),7*(i+N*c.c));
+  h+='<div class="card'+(i===c.i?" now":"")+'" data-oi="'+i+'"><div class="row"><span class="row" style="justify-content:flex-start;gap:4px"><span class="hd" title="Drag to reorder">⠿</span><b>Week '+(i+1)+'</b></span><span class="mu">'+(i===c.i?"THIS WEEK · ":"")+'w/c '+fmt(d)+'</span></div>'+
+  '<input data-ai="'+i+'" data-f="n" value="'+esc(a.n)+'" placeholder="Area name" style="font-weight:700"><input data-ai="'+i+'" data-f="m" value="'+esc(a.m)+'" placeholder="Google Maps link (optional)">'+
+  (i===c.i?"":'<button class="btn" data-mk="'+i+'" style="width:100%">Make this the current week</button>')+'</div>';
+ });
+ h+='<div class="card"><b>Backup and restore</b><div class="mu" style="margin:4px 0">Your data is kept only on this phone, in this app’s storage. Last backup: '+(db.lb||"never")+'</div><div class="acts"><button class="btn p" id="bk">Back up now</button><button class="btn" id="rr">Restore from file</button></div><input id="rf" type="file" accept=".json,application/json" style="display:none"><textarea id="pt" rows="2" placeholder="Or paste backup text here"></textarea><div class="acts"><button class="btn" id="rp">Restore from pasted text</button></div><div class="acts"><button class="btn d" id="wipe">Erase all data on this phone</button></div><div id="bkmsg" class="mu"></div></div>';
+ return h;
+}
+var pend=null;
+function msg(t){var m=$("bkmsg");if(m)m.textContent=t}
+function showText(txt){var m=$("bkmsg");if(m)m.insertAdjacentHTML("beforeend",'<textarea readonly rows="6" style="margin-top:8px">'+esc(txt)+'</textarea><div class="mu">Tap the box, select all, copy, then paste it into a note or email to yourself.</div>')}
+async function doBackup(){
+ var txt=JSON.stringify({app:"door-planner",v:1,saved:new Date().toISOString(),db:db},null,1),dl=null,name="door-planner-backup-"+iso(T)+".json";
+ try{dl=window.claude?await window.claude.use("downloads"):null}catch(e){}
+ if(dl){
+  try{await dl.save({filename:name,data:txt});db.lb=iso(T);save();render();msg("Backup saved ✓")}
+  catch(e){if(e&&e.code==="declined"){msg("Backup cancelled.")}else{msg("Couldn’t save the file. Copy the text below instead.");showText(txt)}}
+  return;
+ }
+ if(!window.claude){
+  var a=document.createElement("a");a.href=URL.createObjectURL(new Blob([txt],{type:"application/json"}));a.download=name;document.body.appendChild(a);a.click();a.remove();
+  db.lb=iso(T);save();render();msg("Backup saved ✓");return;
+ }
+ msg("Downloads aren’t available here. Copy the text below and keep it somewhere safe.");showText(txt);
+}
+function applyBackup(txt){
+ var o,d;
+ try{o=JSON.parse(txt)}catch(e){msg("That doesn’t look like a backup.");return}
+ d=o&&o.db?o.db:o;
+ if(!d||!Array.isArray(d.areas)||!Array.isArray(d.leads)){msg("That doesn’t look like a Door Planner backup.");return}
+ pend=d;
+ $("bkmsg").innerHTML='<div class="card" style="margin-top:8px">Found '+d.leads.length+' doors across '+d.areas.length+' areas. Restoring replaces what is on this phone now.<div class="acts"><button class="btn d" id="rc">Replace my data</button><button class="btn" id="rx">Cancel</button></div></div>';
+}
+function render(){
+ var c=cur();
+ $("ttl").textContent={today:"This week",doors:"Doors",revs:"Revisits",rot:"13-week rotation"}[tab];
+ $("sub").textContent=tab==="rot"?"Edit areas in the order you work them":"Week "+(c.i+1)+" of "+N+" · "+aName(c.i);
+ $("fab").style.display=tab==="rot"?"none":"block";
+ var f={today:vToday,doors:vDoors,revs:vRevs,rot:vRot}[tab];
+ $("main").innerHTML=f();
+}
+function openSheet(h){$("panel").innerHTML=h;$("sheet").classList.add("show")}
+function closeSheet(){$("sheet").classList.remove("show");render()}
+function sel(idv,opts,v){return '<select id="'+idv+'">'+opts.map(function(o){return '<option value="'+o+'"'+(o===v?" selected":"")+'>'+(o||"—")+'</option>'}).join("")+'</select>'}
+function form(l,fa){
+ var nw=!l;
+ l=l||{a:fa!=null?fa:(db.view==null?cur().i:db.view),d:iso(T),st:"",no:"",n:"",o:"",p:"",v:"",t:"",s:"",u:"",r:"",rt:"",m:""};
+ if(nw)l.st=db.areas[l.a].ls||"";
+ var h='<h2 style="margin-top:0">'+(nw?"Log a door":esc(l.n||"Door"))+'</h2>'+
+ '<label>Street</label><select id="f_st"></select><input id="f_stn" placeholder="New street name" style="display:none"><input id="f_no" placeholder="Door number" value="'+esc(l.no)+'">'+
+ '<input id="f_n" placeholder="Business name" value="'+esc(l.n)+'">'+
+ '<input id="f_o" placeholder="Owner name" value="'+esc(l.o)+'">'+
+ '<input id="f_p" type="tel" placeholder="Number" value="'+esc(l.p)+'">'+
+ '<input id="f_v" placeholder="Current provider" value="'+esc(l.v)+'">'+
+ '<label>Opening hours</label><div class="acts" style="margin:0 0 8px"><button class="btn" data-oh="M">Morning</button><button class="btn" data-oh="E">Evening</button><button class="btn" data-oh="A">All day</button></div>'+
+ '<details style="margin-bottom:8px"><summary style="padding:8px 0;font-weight:600">Website &amp; socials</summary>'+SK.map(function(k){return '<div class="row" style="gap:8px;align-items:flex-start"><a class="btn" data-so="'+k+'" target="_blank" rel="noopener" href="#" style="width:104px;text-align:center;flex:none">'+SOC[k]+'</a><input id="s_'+k+'" placeholder="Paste link or @handle" value="'+esc((l.so||{})[k]||"")+'"></div>'}).join("")+'<div class="mu">Tap a button to open the page, or to search for it if nothing is saved yet.</div></details>'+
+ '<textarea id="f_t" rows="3" placeholder="Notes">'+esc(l.t)+'</textarea>'+
+ '<label>Statement?</label>'+sel("f_s",["","No","Yes","NTC"],l.s)+
+ '<label>Status</label>'+sel("f_u",["","Not interested","Revisit","Sold to"],l.u)+
+ '<label>Date and time to revisit</label><div class="row" style="gap:8px"><input id="f_r" type="date" value="'+l.r+'"><input id="f_rt" type="time" value="'+esc(l.rt)+'"></div>'+
+ '<label>Date knocked</label><input id="f_d" type="date" value="'+l.d+'">'+
+ '<label>Area</label><select id="f_a">'+db.areas.map(function(a,i){return '<option value="'+i+'"'+(i===l.a?" selected":"")+'>'+(i+1)+'. '+esc(a.n)+'</option>'}).join("")+'</select>'+
+ '<input id="f_m" placeholder="Google Maps link (optional, paste a share link)" value="'+esc(l.m)+'">'+
+ '<div class="acts"><button class="btn p" id="sv">Save</button>'+(nw?'<button class="btn p" id="sn">Save + next door</button>':"")+'<button class="btn" id="cl">Close</button>'+(nw?"":'<button class="btn d" id="dl">Delete</button>')+'</div>';
+ if(!nw)h+='<div class="acts">'+(l.p?'<a class="btn" href="tel:'+esc(l.p)+'">Call</a>':"")+'<a class="btn" target="_blank" rel="noopener" href="'+mapUrl(l)+'">Open in Maps</a><a class="btn" target="_blank" rel="noopener" href="'+dirUrl(l)+'">Directions</a></div>';
+ h+='<div class="acts"><a class="btn p" id="calb" target="_blank" rel="noopener" href="#">📅 Add revisit to calendar</a></div><div class="mu">Opens Google Calendar with the business, owner, number, provider and notes filled in.</div>';
+ openSheet(h);
+ $("cl").onclick=closeSheet;
+ stFill(l.a,l.st||"");
+ OH=(l.oh||[]).slice();paintOh();
+ var sv=function(nxt){
+  if(!$("f_n").value.trim()){$("f_n").focus();$("f_n").style.borderColor="var(--bad)";$("f_n").placeholder="Business name is required";return}
+  var o=nw?{id:id()}:l;
+  o.n=$("f_n").value.trim();o.o=$("f_o").value.trim();o.p=$("f_p").value.trim();o.v=$("f_v").value.trim();o.t=$("f_t").value;
+  o.s=$("f_s").value;o.u=$("f_u").value;o.r=$("f_r").value;o.rt=$("f_rt").value;o.d=$("f_d").value;o.a=+$("f_a").value;o.m=$("f_m").value.trim();
+  o.st=getSt();o.no=$("f_no").value.trim();o.oh=OH.slice();o.so=readSo();
+  var ar=db.areas[o.a];ar.s=ar.s||[];
+  if(o.st){if(ar.s.indexOf(o.st)<0)ar.s.push(o.st);ar.ls=o.st}
+  if(nw)db.leads.push(o);save();
+  if(nxt){render();form(null,o.a)}else closeSheet();
+ };
+ $("sv").onclick=function(){sv(false)};
+ if(nw)$("sn").onclick=function(){sv(true)};
+ if(!nw)$("dl").onclick=function(){var b=$("dl");if(b.dataset.arm!=="1"){b.dataset.arm="1";b.textContent="Tap again to delete";return}db.leads=db.leads.filter(function(x){return x.id!==l.id});save();closeSheet()};
+ if(nw)$("f_no").focus();
+}
+document.addEventListener("click",function(e){
+ var bi=e.target.id;
+ if(bi==="gobk"){document.querySelector('nav button[data-t="rot"]').click();return}
+ if(bi==="bk"){doBackup();return}
+ if(bi==="rr"){$("rf").click();return}
+ if(bi==="rp"){applyBackup($("pt").value);return}
+ if(bi==="wipe"){
+  if(e.target.dataset.arm!=="1"){e.target.dataset.arm="1";e.target.textContent="Tap again to erase everything";return}
+  try{localStorage.removeItem("pdoor_prev")}catch(x){}
+  db=fresh();save();render();msg("All data erased. You now have a clean install.");return;
+ }
+ if(bi==="rx"){pend=null;msg("");return}
+ if(bi==="rc"&&pend){
+  try{localStorage.setItem("pdoor_prev",JSON.stringify(db))}catch(x){}
+  if(!pend.start)pend.start=iso(mon(T));
+  if(!pend.target)pend.target=100;
+  db=pend;pend=null;clean();save();render();msg("Restored ✓ Your previous data was kept as a safety copy on this phone.");return;
+ }
+ var cb=e.target.closest("#calb");
+ if(cb){var u=calUrl(formLead());if(!u){e.preventDefault();cb.textContent="Pick a revisit date first"}else cb.href=u;return}
+ var oh=e.target.closest("[data-oh]");
+ if(oh){var k=oh.dataset.oh,i=OH.indexOf(k);if(i>-1)OH.splice(i,1);else if(k==="A")OH=["A"];else{OH=OH.filter(function(x){return x!=="A"});OH.push(k)}paintOh();return}
+ var so=e.target.closest("[data-so]");
+ if(so){so.href=soUrl(so.dataset.so,$("s_"+so.dataset.so).value.trim(),formLead());return}
+ if(e.target.closest("a"))return;
+ var mk=e.target.closest("[data-mk]");
+ if(mk){db.start=iso(add(mon(T),-7*(+mk.dataset.mk)));save();render();return}
+ var b=e.target.closest("nav button");
+ if(b){tab=b.dataset.t;document.querySelectorAll("nav button").forEach(function(x){x.classList.toggle("on",x===b)});render();return}
+ var el=e.target.closest("[data-l]");
+ if(el){form(db.leads.find(function(x){return x.id===el.dataset.l}));return}
+ if(e.target.id==="sheet")closeSheet();
+ if(e.target.id==="nb")form(null,cur().i);
+});
+document.addEventListener("change",function(e){
+ var t=e.target;
+ if(t.id==="rf"&&t.files&&t.files[0]){var fr=new FileReader();fr.onload=function(){applyBackup(fr.result)};fr.readAsText(t.files[0]);t.value=""}
+ if(t.id==="f_st"){$("f_stn").style.display=t.value==="__new"?"block":"none";if(t.value==="__new")$("f_stn").focus()}
+ if(t.id==="f_a")stFill(+t.value,db.areas[+t.value].ls||"");
+ if(t.id==="av"){db.view=+t.value;render()}
+ if(t.id==="st"&&t.value){db.start=iso(mon(pd(t.value)));save();render()}
+ if(t.id==="tg"){db.target=Math.max(1,+t.value||100);save()}
+ if(t.dataset&&t.dataset.ai!==undefined){db.areas[+t.dataset.ai][t.dataset.f]=t.value.trim();save()}
+});
+document.addEventListener("input",function(e){if(e.target.id==="q"){q=e.target.value;var p=e.target.selectionStart;render();var n=$("q");if(n){n.focus();n.setSelectionRange(p,p)}}});
+var drag=null;
+document.addEventListener("pointerdown",function(e){
+ var h=e.target.closest(".hd");if(!h)return;
+ drag=h.closest("[data-oi]");drag.classList.add("drag");e.preventDefault();
+});
+document.addEventListener("pointermove",function(e){
+ if(!drag)return;
+ var par=drag.parentNode,sib=[].slice.call(par.querySelectorAll("[data-oi]")).filter(function(x){return x!==drag}),before=null,i,r;
+ for(i=0;i<sib.length;i++){r=sib[i].getBoundingClientRect();if(e.clientY<r.top+r.height/2){before=sib[i];break}}
+ if(before){if(drag.nextSibling!==before)par.insertBefore(drag,before)}
+ else{var last=sib[sib.length-1];if(last&&drag.previousSibling!==last)par.insertBefore(drag,last.nextSibling)}
+ if(e.clientY<100)window.scrollBy(0,-14);else if(e.clientY>window.innerHeight-130)window.scrollBy(0,14);
+});
+function endDrag(){
+ if(!drag)return;
+ drag.classList.remove("drag");drag=null;
+ var order=[].slice.call($("main").querySelectorAll("[data-oi]")).map(function(x){return +x.dataset.oi});
+ if(order.some(function(o,i){return o!==i})){
+  var map={},old=db.areas;
+  order.forEach(function(o,i){map[o]=i});
+  db.areas=order.map(function(o){return old[o]});
+  db.leads.forEach(function(l){l.a=map[l.a]});
+  if(db.view!=null)db.view=map[db.view];
+  save();
+ }
+ render();
+}
+document.addEventListener("pointerup",endDrag);
+document.addEventListener("pointercancel",endDrag);
+$("fab").onclick=function(){form(null)};
+try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}
+render();
+</script>
+<script>if("serviceWorker" in navigator)window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})});</script>
+</body>
+</html>
