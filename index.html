@@ -30,6 +30,8 @@ main{padding:0 16px}
 .chips{display:flex;gap:6px;margin-bottom:8px}
 .chip{flex:1;text-align:center;background:var(--card);border:1px solid var(--ln);border-radius:10px;padding:6px 0;font-size:12px;color:var(--mu)}
 .chip b{display:block;font-size:17px;color:var(--tx)}.chip.t{border-color:var(--ac)}
+.chip i{display:block;font-style:normal;font-size:10px;opacity:.85}
+.chip.hit,.chip.miss{color:var(--bg)}.chip.hit{background:var(--ok);border-color:var(--ok)}.chip.miss{background:var(--bad);border-color:var(--bad)}.chip.hit b,.chip.miss b{color:var(--bg)}
 .grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px}
 .grid .card{margin:0;text-align:center;padding:10px 4px}.grid b{display:block;font-size:18px}.grid span{font-size:12px;color:var(--mu)}
 .btn{padding:11px 14px;border-radius:10px;border:1px solid var(--ln);background:var(--card);font-weight:600;text-decoration:none;display:inline-block;color:var(--tx);cursor:pointer}
@@ -54,7 +56,7 @@ label{font-size:12px;color:var(--mu);display:block;margin:2px 0 3px}
 <button class="fab" id="fab" aria-label="Add door">+</button>
 <div class="sheet" id="sheet"><div class="panel" id="panel"></div></div>
 <script>
-var N=13,DAYS=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"],T=new Date(),tab="today",q="";
+var N=13,MAXA=100,DAYS=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"],T=new Date(),tab="today",q="";
 function p2(n){return n<10?"0"+n:""+n}
 function iso(d){return d.getFullYear()+"-"+p2(d.getMonth()+1)+"-"+p2(d.getDate())}
 function mon(d){d=new Date(d.getFullYear(),d.getMonth(),d.getDate());d.setDate(d.getDate()-(d.getDay()+6)%7);return d}
@@ -65,20 +67,31 @@ function id(){return Date.now().toString(36)+Math.random().toString(36).slice(2,
 function esc(x){return String(x==null?"":x).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function $(i){return document.getElementById(i)}
 function enc(s){return encodeURIComponent(s)}
-function fresh(){
- var names=[],a=[],i;
- for(i=0;i<N;i++)a.push({n:names[i]||"Area "+(i+1),m:""});
- var l=[];
- return{start:iso(mon(T)),target:100,areas:a,leads:l,view:null};
-}
+function fresh(){return{v:2,start:iso(mon(T)),target:100,areas:[],days:{},goals:{},leads:[],view:null,la:null}}
 var db;
 try{db=JSON.parse(localStorage.getItem("pdoor"))}catch(e){}
 if(!db||!db.areas)db=fresh();
 function clean(){var n=db.leads.length;db.leads=db.leads.filter(function(l){return l.n!=="Door (no answer)"});return n!==db.leads.length}
 if(clean())save();
+migrate();
+db.goals=db.goals||{};
 function save(){try{localStorage.setItem("pdoor",JSON.stringify(db))}catch(e){}}
-function cur(){var w=Math.round((mon(T)-mon(pd(db.start)))/6048e5);return{w:w,i:((w%N)+N)%N,c:Math.floor(w/N)}}
-function aName(i){return db.areas[i].n}
+function aName(i){return db.areas[i]?db.areas[i].n:"No area"}
+function migrate(){
+ if(db.v>=2)return;
+ var w=Math.round((mon(T)-mon(pd(db.start||iso(mon(T)))))/6048e5),oi=((w%N)+N)%N,used={},map={},na=[];
+ db.leads.forEach(function(l){used[l.a]=1});
+ db.areas.forEach(function(a,i){
+  var ph=/^Area \d+$/.test(a.n||"")&&!used[i]&&!(a.s&&a.s.length)&&!a.m;
+  if(!ph){map[i]=na.length;na.push(a)}
+ });
+ db.areas=na;
+ db.leads.forEach(function(l){l.a=map[l.a]!=null?map[l.a]:0});
+ db.view=(db.view!=null&&map[db.view]!=null)?map[db.view]:null;
+ db.la=map[oi]!=null?map[oi]:null;
+ db.days=db.days||{};
+ db.v=2;save();
+}
 function addr(l){return ((l.no?l.no+" ":"")+(l.st||"")).trim()}
 function stFill(a,cur){
  var s=db.areas[a].s||[],el=$("f_st"),n=$("f_stn");
@@ -124,53 +137,102 @@ function soUrl(k,v,l){
 function soBtns(l){return SK.filter(function(k){return l.so&&l.so[k]}).map(function(k){return '<a class="btn" target="_blank" rel="noopener" href="'+esc(soUrl(k,l.so[k],l))+'">'+SS[k]+'</a>'}).join("")}
 function formLead(){var l={a:+$("f_a").value};l.n=$("f_n").value.trim();l.o=$("f_o").value.trim();l.p=$("f_p").value.trim();l.v=$("f_v").value.trim();l.t=$("f_t").value;l.s=$("f_s").value;l.u=$("f_u").value;l.r=$("f_r").value;l.rt=$("f_rt").value;l.st=getSt();l.no=$("f_no").value.trim();l.m=$("f_m").value.trim();l.oh=OH.slice();l.so=readSo();return l}
 function areaUrl(i){var m=db.areas[i].m;return /^https?:/.test(m||"")?m:"https://www.google.com/maps/search/?api=1&query="+enc(aName(i))}
-function weekLeads(i){var s=iso(mon(T)),e=iso(add(mon(T),6));return db.leads.filter(function(l){return l.a===i&&l.d>=s&&l.d<=e})}
+function weekLeads(){var s=iso(mon(T)),e=iso(add(mon(T),6));return db.leads.filter(function(l){return l.d>=s&&l.d<=e})}
+function tArea(){var v=db.days&&db.days[iso(T)];return(v!=null&&db.areas[v])?v:-1}
+function setToday(i,g){
+ var k=iso(T);db.days[k]=i;db.la=i;
+ if(g!==undefined){if(g>0)db.goals[k]=g;else delete db.goals[k]}
+ save();
+}
+function addArea(nm){
+ var k=nm.toLowerCase(),i;
+ for(i=0;i<db.areas.length;i++)if((db.areas[i].n||"").toLowerCase()===k)return i;
+ if(db.areas.length>=MAXA)return -1;
+ db.areas.push({n:nm,m:""});save();return db.areas.length-1;
+}
+function delArea(i){
+ db.areas.splice(i,1);
+ db.leads.forEach(function(l){if(l.a>i)l.a--});
+ var d2={};Object.keys(db.days).forEach(function(k){var v=db.days[k];if(v===i)return;d2[k]=v>i?v-1:v});db.days=d2;
+ if(db.view!=null&&db.view!=="all")db.view=db.view===i?null:(db.view>i?db.view-1:db.view);
+ if(db.la!=null)db.la=db.la===i?null:(db.la>i?db.la-1:db.la);
+ save();
+}
+var pendAfter=false;
+function pickArea(after){
+ pendAfter=!!after;
+ var ta=tArea(),sel=ta>=0?ta:(db.la!=null&&db.areas[db.la]?db.la:0),
+ g=db.goals[iso(T)]||Math.max(1,Math.round(db.target/5)),
+ left=Math.max(0,db.target-weekLeads().length),dl=Math.max(0,5-(T.getDay()+6)%7),
+ hint=left===0?"Your weekly target of "+db.target+" is already hit.":(dl?"To reach "+db.target+" this week: about "+Math.ceil(left/dl)+" a day for the "+dl+" weekday"+(dl>1?"s":"")+" left.":"Weekend: "+left+" left for the weekly target."),
+ h='<h2 style="margin-top:0">Where are you working today?</h2><div class="mu" style="margin-bottom:10px">'+T.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"})+(ta>=0?". Businesses already logged today stay under their current area.":"")+'</div>';
+ if(db.areas.length)h+='<label>Choose an area</label><select id="pa_s">'+db.areas.map(function(a,i){return '<option value="'+i+'"'+(i===sel?" selected":"")+'>'+esc(a.n)+'</option>'}).join("")+'</select>';
+ else h+='<div class="mu" style="margin-bottom:8px">Add your first area to get started. You can add more at any time.</div>';
+ h+='<label style="margin-top:8px">Goal for today (businesses)</label><div class="row" style="gap:6px"><button class="btn" data-gs="-5">−5</button><button class="btn" data-gs="-1">−1</button><input id="pa_g" type="number" inputmode="numeric" min="0" value="'+g+'" style="margin:0;flex:1;min-width:0;text-align:center;font-weight:700"><button class="btn" data-gs="1">+1</button><button class="btn" data-gs="5">+5</button></div><div class="mu" style="margin-top:6px">'+hint+' Set 0 for no goal.</div>';
+ if(db.areas.length)h+='<div class="acts"><button class="btn p" id="pa_go">Start here</button></div><div class="mu" style="margin:8px 0 4px">Or add a new area</div>';
+ h+='<div class="row" style="gap:8px;margin-top:8px"><input id="pa_n" placeholder="New area name" style="margin:0"><button class="btn" id="pa_add" style="flex:none">Add + start</button></div><div id="pa_m" class="mu" style="margin-top:6px"></div><div class="acts"><button class="btn" id="pa_x">Not now</button></div>';
+ openSheet(h);
+}
+function addBiz(){if(tArea()<0){pickArea(true);return}form(null,tArea())}
 function revsDue(){var t=iso(T);return db.leads.filter(function(l){return l.u==="Revisit"&&(!l.r||l.r<=t)})}
 
 function vToday(){
- var c=cur(),wk=weekLeads(c.i),k=wk.length,left=Math.max(0,db.target-k),
+ var ta=tArea(),wk=weekLeads(),k=wk.length,left=Math.max(0,db.target-k),
  sold=wk.filter(function(l){return l.u==="Sold to"}).length,st=wk.filter(function(l){return l.s==="Yes"}).length,
  dl=Math.max(0,5-(T.getDay()+6)%7),pct=Math.min(100,Math.round(k/db.target*100)),
  pace=left===0?"Target hit 🎉":(dl?"about "+Math.ceil(left/dl)+" a day for the "+dl+" weekday"+(dl>1?"s":"")+" left":"weekend: "+left+" to go"),
- cnt=[0,0,0,0,0,0,0];
- wk.forEach(function(l){cnt[(pd(l.d).getDay()+6)%7]++});
- var td=(T.getDay()+6)%7;
- var stale=db.leads.length>=10&&(!db.lb||(T-pd(db.lb))/864e5>7),h=(stale?'<div class="card row"><span class="mu">Last backup: '+(db.lb||"never")+'. Your data lives only on this phone.</span><button class="btn" id="gobk">Back up</button></div>':"")+'<div class="card now"><div class="mu">WEEK '+(c.i+1)+' OF '+N+' · W/C '+fmt(mon(T)).toUpperCase()+'</div><div class="big">'+esc(aName(c.i))+'</div>'+
- '<div class="bar"><i style="width:'+pct+'%"></i></div><div class="row"><b>'+left+' doors left</b><span class="mu">'+k+' / '+db.target+' knocked</span></div><div class="mu">'+pace+'</div>'+
- '<div class="acts"><a class="btn" target="_blank" rel="noopener" href="'+areaUrl(c.i)+'">📍 Area map</a><a class="btn" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=businesses+near+me">Near me</a></div></div>'+
- '<div class="chips">'+DAYS.map(function(d,i){return '<div class="chip'+(i===td?" t":"")+'"><b>'+cnt[i]+'</b>'+d+'</div>'}).join("")+'</div>'+
+ cnt=[0,0,0,0,0,0,0],ar={};
+ wk.forEach(function(l){cnt[(pd(l.d).getDay()+6)%7]++;ar[l.a]=(ar[l.a]||0)+1});
+ var td=(T.getDay()+6)%7,tn=cnt[td],ti=iso(T),gT=db.goals[ti]||0,gH=0,gN=0,
+ chips=DAYS.map(function(d,i){
+  var dt=iso(add(mon(T),i)),gl=db.goals[dt]||0,cl=i===td?" t":"";
+  if(gl){gN++;if(cnt[i]>=gl){gH++;cl+=" hit"}else if(dt<ti)cl+=" miss"}
+  return '<div class="chip'+cl+'"><b>'+cnt[i]+'</b>'+d+(gl?'<i>of '+gl+'</i>':'')+'</div>';
+ }).join(""),
+ al=Object.keys(ar).sort(function(a,b){return ar[b]-ar[a]}).map(function(a){return esc(aName(+a))+" ("+ar[a]+")"}).join(" · "),
+ stale=db.leads.length>=10&&(!db.lb||(T-pd(db.lb))/864e5>7),
+ prog=gT?('<div class="row" style="margin-top:6px"><b>'+(tn>=gT?"Goal hit 🎉":(gT-tn)+" to go today")+'</b><span class="mu">'+tn+' / '+gT+'</span></div><div class="bar"><i style="width:'+Math.min(100,Math.round(tn/gT*100))+'%'+(tn>=gT?";background:var(--ok)":"")+'"></i></div>'):'<div class="mu">'+tn+' business'+(tn===1?"":"es")+' logged today · no goal set</div>',
+ top=ta>=0?
+  '<div class="card now"><div class="mu">TODAY · '+DAYS[td].toUpperCase()+' '+fmt(T).toUpperCase()+'</div><div class="big">'+esc(aName(ta))+'</div>'+prog+
+  '<div class="acts"><a class="btn" target="_blank" rel="noopener" href="'+areaUrl(ta)+'">📍 Area map</a><a class="btn" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=businesses+near+me">Near me</a><button class="btn" id="chg">Change area / goal</button></div></div>':
+  '<div class="card now"><div class="mu">TODAY · '+DAYS[td].toUpperCase()+' '+fmt(T).toUpperCase()+'</div><div class="big">Choose today’s area</div><div class="mu">Pick where you are working and set your goal for the day.</div><div class="acts"><button class="btn p" id="pickd">Choose area and goal</button></div></div>',
+ h=(stale?'<div class="card row"><span class="mu">Last backup: '+(db.lb||"never")+'. Your data lives only on this phone.</span><button class="btn" id="gobk">Back up</button></div>':"")+top+
+ '<div class="card"><div class="mu">THIS WEEK · W/C '+fmt(mon(T)).toUpperCase()+'</div><div class="bar"><i style="width:'+pct+'%"></i></div><div class="row"><b>'+left+' doors left</b><span class="mu">'+k+' / '+db.target+' knocked</span></div><div class="mu">'+pace+'</div>'+(al?'<div class="mu" style="margin-top:6px">Areas: '+al+'</div>':"")+'</div>'+
+ '<div class="chips">'+chips+'</div>'+
  '<div class="grid"><div class="card"><b>'+sold+'</b><span>Sales</span></div><div class="card"><b>'+(k?Math.round(sold/k*100):0)+'%</b><span>Conversion</span></div><div class="card"><b>'+st+'</b><span>Statements</span></div>'+
- '<div class="card"><b>'+(k?Math.round(st/k*100):0)+'%</b><span>Statement %</span></div><div class="card"><b>'+revsDue().length+'</b><span>Revisits due</span></div><div class="card"><b>'+(c.c+1)+'</b><span>Cycle</span></div></div>'+
+ '<div class="card"><b>'+(k?Math.round(st/k*100):0)+'%</b><span>Statement %</span></div><div class="card"><b>'+revsDue().length+'</b><span>Revisits due</span></div><div class="card"><b>'+(gN?gH+"/"+gN:"–")+'</b><span>Daily goals hit</span></div></div>'+
  '<div class="acts"><button class="btn p" id="nb">+ Add a new business</button></div>'+
- '<div class="acts"><button class="btn" data-t="doors">All businesses</button><button class="btn" data-t="revs">Revisits ('+revsDue().length+')</button><button class="btn" data-t="rot">Rotation</button></div>';
- var nx=db.areas[(c.i+1)%N];
- return h+'<div class="mu" style="text-align:center">Next week: '+esc(nx.n)+'</div>';
+ '<div class="acts"><button class="btn" data-t="doors">All businesses</button><button class="btn" data-t="revs">Revisits ('+revsDue().length+')</button><button class="btn" data-t="rot">Areas</button></div>';
+ return h;
 }
-function lcard(l){
+function lcard(l,sa){
  var d=l.d?DAYS[(pd(l.d).getDay()+6)%7]+" "+fmt(pd(l.d)):"Undated";
  return '<div class="card" data-l="'+l.id+'"><div class="row"><b>'+esc(l.n||"Door")+'</b>'+(l.u?'<span class="pill '+(l.u==="Sold to"?"s":l.u==="Revisit"?"r":"")+'">'+l.u+'</span>':"")+'</div>'+
- '<div class="mu">'+(addr(l)?"<b>"+esc(addr(l))+"</b> · ":"")+d+(l.oh&&l.oh.length?" · Open "+ohTxt(l.oh):"")+(l.v?" · "+esc(l.v):"")+(l.o?" · "+esc(l.o):"")+(l.r?" · revisit "+l.r+(l.rt?" "+l.rt:""):"")+'</div>'+
+ '<div class="mu">'+(sa?esc(aName(l.a))+" · ":"")+(addr(l)?"<b>"+esc(addr(l))+"</b> · ":"")+d+(l.oh&&l.oh.length?" · Open "+ohTxt(l.oh):"")+(l.v?" · "+esc(l.v):"")+(l.o?" · "+esc(l.o):"")+(l.r?" · revisit "+l.r+(l.rt?" "+l.rt:""):"")+'</div>'+
  '<div class="acts">'+(l.p?'<a class="btn" href="tel:'+esc(l.p)+'">Call</a>':"")+'<a class="btn" target="_blank" rel="noopener" href="'+mapUrl(l)+'">Maps</a>'+(l.r?'<a class="btn" target="_blank" rel="noopener" href="'+calUrl(l)+'">📅 Calendar</a>':"")+soBtns(l)+'</div></div>';
 }
 function vDoors(){
- var i=db.view==null?cur().i:db.view,k=q.toLowerCase();
- var opts=db.areas.map(function(a,x){return '<option value="'+x+'"'+(x===i?" selected":"")+'>'+(x+1)+'. '+esc(a.n)+'</option>'}).join("");
- var list=db.leads.filter(function(l){return l.a===i&&(!k||((l.n||"")+" "+(l.o||"")+" "+(l.v||"")+" "+(l.p||"")+" "+(l.st||"")).toLowerCase().indexOf(k)>-1)}).sort(function(a,b){return (b.d||"").localeCompare(a.d||"")});
+ if(!db.areas.length)return '<div class="empty">No areas yet. Choose today’s area on the home screen first.</div>';
+ var all=db.view==="all",ta=tArea(),i=all?-1:(db.view!=null&&db.areas[db.view]?db.view:(ta>=0?ta:0)),k=q.toLowerCase();
+ var opts='<option value="all"'+(all?" selected":"")+'>All areas</option>'+db.areas.map(function(a,x){return '<option value="'+x+'"'+(x===i?" selected":"")+'>'+esc(a.n)+'</option>'}).join("");
+ var list=db.leads.filter(function(l){return (all||l.a===i)&&(!k||((l.n||"")+" "+(l.o||"")+" "+(l.v||"")+" "+(l.p||"")+" "+(l.st||"")).toLowerCase().indexOf(k)>-1)}).sort(function(a,b){return (b.d||"").localeCompare(a.d||"")});
  return '<select id="av">'+opts+'</select><input id="q" type="search" placeholder="Search businesses…" value="'+esc(q)+'">'+
- (list.length?list.map(lcard).join(""):'<div class="empty">No doors logged for this area yet. Tap + to add one.</div>');
+ (list.length?list.map(function(l){return lcard(l,all)}).join(""):'<div class="empty">No businesses logged here yet. Tap + to add one.</div>');
 }
 function vRevs(){
  var t=iso(T),l=db.leads.filter(function(x){return x.u==="Revisit"}).sort(function(a,b){return ((a.r||"0")+(a.rt||"")).localeCompare((b.r||"0")+(b.rt||""))});
  return l.length?l.map(function(x){return '<div class="mu '+(x.r&&x.r<t?"late":"")+'" style="margin:8px 2px 2px">'+esc(aName(x.a))+(x.r?" · due "+x.r:" · no date")+'</div>'+lcard(x)}).join(""):'<div class="empty">No revisits waiting. Set a door’s status to Revisit to see it here.</div>';
 }
 function vRot(){
- var c=cur(),ws=mon(pd(db.start));
- var h='<div class="mu" style="margin:0 2px 8px">Drag ⠿ to reorder weeks · tap a name to rename it. Logged doors move with their area.</div><div class="card"><label>Rotation started (a Monday)</label><input id="st" type="date" value="'+db.start+'"><label>Doors per week</label><input id="tg" type="number" value="'+db.target+'"></div>';
+ var ta=tArea(),h='<div class="mu" style="margin:0 2px 8px">Add as many areas as you need ('+db.areas.length+' of '+MAXA+'). Drag ⠿ to reorder · tap a name to rename. You choose the area each day from the home screen.</div>'+
+ '<div class="card"><label>Doors per week</label><input id="tg" type="number" value="'+db.target+'"></div>'+
+ '<div class="card"><label>Add an area</label><div class="row" style="gap:8px"><input id="aa_n" placeholder="Area name" style="margin:0"><button class="btn p" id="aa_go" style="flex:none">Add</button></div><div id="aa_m" class="mu" style="margin-top:6px"></div></div>';
+ if(!db.areas.length)h+='<div class="empty">No areas yet. Add your first one above.</div>';
  db.areas.forEach(function(a,i){
-  var d=add(mon(pd(db.start)),7*(i+N*c.c));
-  h+='<div class="card'+(i===c.i?" now":"")+'" data-oi="'+i+'"><div class="row"><span class="row" style="justify-content:flex-start;gap:4px"><span class="hd" title="Drag to reorder">⠿</span><b>Week '+(i+1)+'</b></span><span class="mu">'+(i===c.i?"THIS WEEK · ":"")+'w/c '+fmt(d)+'</span></div>'+
+  var n=db.leads.filter(function(l){return l.a===i}).length;
+  h+='<div class="card'+(i===ta?" now":"")+'" data-oi="'+i+'"><div class="row"><span class="row" style="justify-content:flex-start;gap:4px"><span class="hd" title="Drag to reorder">⠿</span><b>'+(i===ta?"Working here today":"Area "+(i+1))+'</b></span><span class="mu">'+n+' business'+(n===1?"":"es")+'</span></div>'+
   '<input data-ai="'+i+'" data-f="n" value="'+esc(a.n)+'" placeholder="Area name" style="font-weight:700"><input data-ai="'+i+'" data-f="m" value="'+esc(a.m)+'" placeholder="Google Maps link (optional)">'+
-  (i===c.i?"":'<button class="btn" data-mk="'+i+'" style="width:100%">Make this the current week</button>')+'</div>';
+  '<div class="acts" style="margin:0">'+(i===ta?"":'<button class="btn" data-wt="'+i+'">Work here today</button>')+(n===0?'<button class="btn d" data-da="'+i+'">Delete area</button>':"")+'</div></div>';
  });
  return h;
 }
@@ -207,25 +269,28 @@ function applyBackup(txt){
  $("bkmsg").innerHTML='<div class="card" style="margin-top:8px">Found '+d.leads.length+' doors across '+d.areas.length+' areas. Restoring replaces what is on this phone now.<div class="acts"><button class="btn d" id="rc">Replace my data</button><button class="btn" id="rx">Cancel</button></div></div>';
 }
 function histHtml(){
- var cw=iso(mon(T)),g={},keys=[],tot={n:0,s:0,st:0},tg=db.target;
+ var cw=iso(mon(T)),g={},keys=[],tot={n:0,s:0},tg=db.target;
  db.leads.forEach(function(l){
   if(!l.d||l.d>=cw)return;
-  var w=iso(mon(pd(l.d))),k=w+"|"+l.a;
-  if(!g[k]){g[k]={w:w,a:l.a,n:0,s:0,st:0,rv:0};keys.push(k)}
-  var o=g[k];o.n++;tot.n++;
+  var w=iso(mon(pd(l.d)));
+  if(!g[w]){g[w]={w:w,n:0,s:0,st:0,rv:0,ar:{},dd:{}};keys.push(w)}
+  var o=g[w];o.n++;tot.n++;
   if(l.u==="Sold to"){o.s++;tot.s++}
-  if(l.s==="Yes"){o.st++;tot.st++}
+  if(l.s==="Yes")o.st++;
   if(l.u==="Revisit")o.rv++;
+  o.ar[l.a]=(o.ar[l.a]||0)+1;o.dd[l.d]=(o.dd[l.d]||0)+1;
  });
- keys.sort(function(a,b){return g[b].w.localeCompare(g[a].w)||g[a].a-g[b].a});
+ keys.sort(function(a,b){return b.localeCompare(a)});
  var pc=function(a,b){return b?Math.round(a/b*100)+"%":"0%"};
  var h='<div class="row"><h2 style="margin:0">History</h2><button class="btn" id="sx">Close</button></div><div class="acts" style="margin-top:12px"><button class="btn" id="hb">← Settings</button></div>';
- if(!keys.length)return h+'<div class="empty">No past weeks yet. When a week has finished, its area and numbers show up here.</div>';
- h+='<div class="card"><div class="mu">ALL PAST WEEKS · '+keys.length+' area-week'+(keys.length>1?"s":"")+'</div><div class="grid" style="margin-top:8px"><div class="card"><b>'+tot.n+'</b><span>Doors</span></div><div class="card"><b>'+tot.s+'</b><span>Sales</span></div><div class="card"><b>'+pc(tot.s,tot.n)+'</b><span>Conversion</span></div></div></div>';
- keys.forEach(function(k){
-  var o=g[k],pct=Math.min(100,Math.round(o.n/tg*100));
-  h+='<div class="card"><div class="row"><b>'+esc(aName(o.a))+'</b><span class="mu">w/c '+pd(o.w).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})+'</span></div>'+
-  '<div class="bar"><i style="width:'+pct+'%"></i></div><div class="mu" style="margin-bottom:8px">'+o.n+' of '+tg+' doors</div>'+
+ if(!keys.length)return h+'<div class="empty">No past weeks yet. When a week has finished, its areas and numbers show up here.</div>';
+ h+='<div class="card"><div class="mu">ALL PAST WEEKS · '+keys.length+' week'+(keys.length>1?"s":"")+'</div><div class="grid" style="margin-top:8px"><div class="card"><b>'+tot.n+'</b><span>Doors</span></div><div class="card"><b>'+tot.s+'</b><span>Sales</span></div><div class="card"><b>'+pc(tot.s,tot.n)+'</b><span>Conversion</span></div></div></div>';
+ keys.forEach(function(w){
+  var o=g[w],pct=Math.min(100,Math.round(o.n/tg*100)),
+  wh=Object.keys(o.ar).sort(function(a,b){return o.ar[b]-o.ar[a]}).map(function(a){return esc(aName(+a))+" ("+o.ar[a]+")"}).join(" · "),gx=0,gy=0;
+  for(var gi=0;gi<7;gi++){var gd=iso(add(pd(o.w),gi)),gl=db.goals[gd]||0;if(gl){gy++;if((o.dd[gd]||0)>=gl)gx++}}
+  h+='<div class="card"><div class="row"><b>W/C '+pd(o.w).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})+'</b><span class="mu">'+o.n+' of '+tg+' doors</span></div><div class="mu" style="margin:4px 0">'+wh+'</div>'+(gy?'<div class="mu" style="margin:0 0 6px">Daily goals hit: <b style="color:var(--tx)">'+gx+' of '+gy+'</b></div>':"")+
+  '<div class="bar"><i style="width:'+pct+'%"></i></div>'+
   '<div class="grid"><div class="card"><b>'+o.s+'</b><span>Sales</span></div><div class="card"><b>'+pc(o.s,o.n)+'</b><span>Conversion</span></div><div class="card"><b>'+o.st+'</b><span>Statements</span></div>'+
   '<div class="card"><b>'+pc(o.st,o.n)+'</b><span>Statement %</span></div><div class="card"><b>'+o.rv+'</b><span>Revisits</span></div><div class="card"><b>'+pct+'%</b><span>Of target</span></div></div></div>';
  });
@@ -233,10 +298,9 @@ function histHtml(){
 }
 function openSettings(){openSheet(setHtml())}
 function render(){
- var c=cur();
- $("ttl").textContent={today:"This week",doors:"Doors",revs:"Revisits",rot:"13-week rotation"}[tab];
+ $("ttl").textContent={today:"This week",doors:"Doors",revs:"Revisits",rot:"Areas"}[tab];
  $("backrow").innerHTML=tab==="today"?"":'<button class="btn" data-t="today" style="margin-bottom:8px">← This week</button>';
- $("sub").textContent=tab==="rot"?"Edit areas in the order you work them":"Week "+(c.i+1)+" of "+N+" · "+aName(c.i);
+ $("sub").textContent=tab==="rot"?"Add, rename and reorder your areas":"Week commencing "+fmt(mon(T));
  $("fab").style.display=tab==="rot"?"none":"block";
  var f={today:vToday,doors:vDoors,revs:vRevs,rot:vRot}[tab];
  $("main").innerHTML=f();
@@ -246,7 +310,7 @@ function closeSheet(){$("sheet").classList.remove("show");render()}
 function sel(idv,opts,v){return '<select id="'+idv+'">'+opts.map(function(o){return '<option value="'+o+'"'+(o===v?" selected":"")+'>'+(o||"—")+'</option>'}).join("")+'</select>'}
 function form(l,fa){
  var nw=!l;
- l=l||{a:fa!=null?fa:(db.view==null?cur().i:db.view),d:iso(T),st:"",no:"",n:"",o:"",p:"",v:"",t:"",s:"",u:"",r:"",rt:"",m:""};
+ l=l||{a:fa!=null?fa:(tArea()>=0?tArea():0),d:iso(T),st:"",no:"",n:"",o:"",p:"",v:"",t:"",s:"",u:"",r:"",rt:"",m:""};
  if(nw)l.st=db.areas[l.a].ls||"";
  var h='<h2 style="margin-top:0">'+(nw?"Log a door":esc(l.n||"Door"))+'</h2>'+
  '<label>Street</label><select id="f_st"></select><input id="f_stn" placeholder="New street name" style="display:none"><input id="f_no" placeholder="Door number" value="'+esc(l.no)+'">'+
@@ -291,6 +355,13 @@ document.addEventListener("click",function(e){
  if(bi==="gobk"||bi==="data"){openSheet(dataHtml());return}
  if(e.target.closest("#gear")){openSettings();return}
  if(bi==="sx"){closeSheet();return}
+ var gs=e.target.closest("[data-gs]");
+ if(gs){var gi2=$("pa_g");gi2.value=Math.max(0,Math.round(+gi2.value||0)+(+gs.dataset.gs));return}
+ if(bi==="pickd"||bi==="chg"){pickArea();return}
+ if(bi==="pa_x"){pendAfter=false;closeSheet();return}
+ if(bi==="pa_go"){var pv=+$("pa_s").value,pg2=Math.max(0,Math.round(+$("pa_g").value||0));setToday(pv,pg2);closeSheet();if(pendAfter){pendAfter=false;form(null,pv)}return}
+ if(bi==="pa_add"){var pn=$("pa_n").value.trim();if(!pn){$("pa_n").focus();return}var px=addArea(pn);if(px<0){$("pa_m").textContent="You’ve reached the limit of "+MAXA+" areas.";return}setToday(px,Math.max(0,Math.round(+$("pa_g").value||0)));closeSheet();if(pendAfter){pendAfter=false;form(null,px)}return}
+ if(bi==="aa_go"){var an=$("aa_n").value.trim();if(!an){$("aa_n").focus();return}if(addArea(an)<0){$("aa_m").textContent="You’ve reached the limit of "+MAXA+" areas.";return}render();return}
  if(bi==="hist"){openSheet(histHtml());return}
  if(bi==="hb"){openSettings();return}
  if(bi==="ask"){$("panel").innerHTML='<h2 style="margin-top:0">Erase everything?</h2><div class="mu" style="margin-bottom:10px">This permanently deletes all businesses, notes, areas and settings on this phone. It can’t be undone. If you might want your data back, cancel and back it up first.</div><input id="ec" placeholder="Type ERASE to confirm" autocomplete="off" autocapitalize="characters"><div class="acts"><button class="btn d" id="wipe" disabled>Erase all data</button><button class="btn" id="ecx">Cancel</button></div>';return}
@@ -308,7 +379,7 @@ document.addEventListener("click",function(e){
   try{localStorage.setItem("pdoor_prev",JSON.stringify(db))}catch(x){}
   if(!pend.start)pend.start=iso(mon(T));
   if(!pend.target)pend.target=100;
-  db=pend;pend=null;clean();save();render();msg("Restored ✓ Your previous data was kept as a safety copy on this phone.");return;
+  db=pend;pend=null;clean();migrate();db.goals=db.goals||{};save();render();msg("Restored ✓ Your previous data was kept as a safety copy on this phone.");return;
  }
  var cb=e.target.closest("#calb");
  if(cb){var u=calUrl(formLead());if(!u){e.preventDefault();cb.textContent="Pick a revisit date first"}else cb.href=u;return}
@@ -317,24 +388,26 @@ document.addEventListener("click",function(e){
  var so=e.target.closest("[data-so]");
  if(so){so.href=soUrl(so.dataset.so,$("s_"+so.dataset.so).value.trim(),formLead());return}
  if(e.target.closest("a"))return;
- var mk=e.target.closest("[data-mk]");
- if(mk){db.start=iso(add(mon(T),-7*(+mk.dataset.mk)));save();render();return}
+ var wt=e.target.closest("[data-wt]");
+ if(wt){setToday(+wt.dataset.wt);render();return}
+ var da=e.target.closest("[data-da]");
+ if(da){if(da.dataset.arm!=="1"){da.dataset.arm="1";da.textContent="Tap again to delete";return}delArea(+da.dataset.da);render();return}
  var b=e.target.closest("[data-t]");
  if(b){tab=b.dataset.t;window.scrollTo(0,0);render();return}
  var el=e.target.closest("[data-l]");
  if(el){form(db.leads.find(function(x){return x.id===el.dataset.l}));return}
  if(e.target.id==="sheet")closeSheet();
- if(e.target.id==="nb")form(null,cur().i);
+ if(e.target.id==="nb"){addBiz();return}
 });
 document.addEventListener("change",function(e){
  var t=e.target;
  if(t.id==="rf"&&t.files&&t.files[0]){var fr=new FileReader();fr.onload=function(){applyBackup(fr.result)};fr.readAsText(t.files[0]);t.value=""}
  if(t.id==="f_st"){$("f_stn").style.display=t.value==="__new"?"block":"none";if(t.value==="__new")$("f_stn").focus()}
  if(t.id==="f_a")stFill(+t.value,db.areas[+t.value].ls||"");
- if(t.id==="av"){db.view=+t.value;render()}
+ if(t.id==="av"){db.view=t.value==="all"?"all":+t.value;render()}
  if(t.id==="st"&&t.value){db.start=iso(mon(pd(t.value)));save();render()}
  if(t.id==="tg"){db.target=Math.max(1,+t.value||100);save()}
- if(t.dataset&&t.dataset.ai!==undefined){db.areas[+t.dataset.ai][t.dataset.f]=t.value.trim();save()}
+ if(t.dataset&&t.dataset.ai!==undefined){var av2=t.value.trim();if(t.dataset.f==="n"&&!av2){t.value=db.areas[+t.dataset.ai].n;return}db.areas[+t.dataset.ai][t.dataset.f]=av2;save()}
 });
 document.addEventListener("input",function(e){if(e.target.id==="ec"){$("wipe").disabled=e.target.value.trim()!=="ERASE";return}if(e.target.id==="q"){q=e.target.value;var p=e.target.selectionStart;render();var n=$("q");if(n){n.focus();n.setSelectionRange(p,p)}}});
 var drag=null;
@@ -359,16 +432,19 @@ function endDrag(){
   order.forEach(function(o,i){map[o]=i});
   db.areas=order.map(function(o){return old[o]});
   db.leads.forEach(function(l){l.a=map[l.a]});
-  if(db.view!=null)db.view=map[db.view];
+  if(db.view!=null&&db.view!=="all")db.view=map[db.view];
+  if(db.la!=null)db.la=map[db.la];
+  Object.keys(db.days).forEach(function(k){db.days[k]=map[db.days[k]]});
   save();
  }
  render();
 }
 document.addEventListener("pointerup",endDrag);
 document.addEventListener("pointercancel",endDrag);
-$("fab").onclick=function(){form(null)};
+$("fab").onclick=function(){addBiz()};
 try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}
 render();
+if(tArea()<0)pickArea();
 </script>
 <script>if("serviceWorker" in navigator)window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})});</script>
 </body>
